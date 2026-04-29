@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockSense</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#03060a;color:#e8edf5;font-family:sans-serif;min-height:100vh;padding:16px;}
+h1{font-size:22px;font-weight:700;margin-bottom:4px;}
+.sub{font-size:11px;color:#5a7090;letter-spacing:2px;margin-bottom:24px;}
+.scan-card{background:#080d13;border:1px solid #1a2535;border-radius:12px;padding:20px;margin-bottom:20px;}
+.scan-card p{font-size:13px;color:#5a7090;margin-bottom:16px;line-height:1.6;}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.tag{font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,61,87,0.3);color:#ff3d57;background:rgba(255,61,87,0.06);}
+.tag.g{border-color:rgba(0,230,118,0.3);color:#00e676;background:rgba(0,230,118,0.06);}
+.tag.b{border-color:rgba(64,196,255,0.3);color:#40c4ff;background:rgba(64,196,255,0.06);}
+.tag.y{border-color:rgba(255,171,0,0.3);color:#ffab00;background:rgba(255,171,0,0.06);}
+button{width:100%;padding:14px;background:linear-gradient(135deg,#ff3d57,#c62828);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;}
+button:disabled{background:#1a2535;color:#5a7090;cursor:not-allowed;}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+.stat{background:#080d13;border:1px solid #1a2535;border-radius:10px;padding:12px;}
+.stat-l{font-size:9px;color:#5a7090;letter-spacing:1px;margin-bottom:4px;}
+.stat-v{font-size:20px;font-weight:700;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.fb{padding:5px 12px;border-radius:20px;border:1px solid #1a2535;background:transparent;color:#5a7090;font-size:11px;cursor:pointer;}
+.fb.on{border-color:#ff3d57;color:#ff3d57;background:rgba(255,61,87,0.08);}
+.tbl-wrap{background:#080d13;border:1px solid #1a2535;border-radius:12px;overflow:hidden;}
+.tbl-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #1a2535;}
+.tbl-title{font-size:13px;font-weight:600;}
+.cnt{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,61,87,0.1);color:#ff3d57;border:1px solid rgba(255,61,87,0.2);}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+th{text-align:left;padding:8px 12px;color:#5a7090;font-size:9px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #1a2535;}
+td{padding:10px 12px;border-bottom:1px solid rgba(26,37,53,0.5);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover{background:rgba(13,21,32,0.8);}
+.sym{font-weight:700;font-size:13px;}
+.exch{font-size:9px;color:#5a7090;}
+.sect{font-size:9px;padding:2px 6px;border-radius:4px;background:#0d1520;color:#5a7090;border:1px solid #1a2535;}
+.circ{font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(255,171,0,0.1);color:#ffab00;border:1px solid rgba(255,171,0,0.3);font-weight:700;}
+.dn{color:#ff3d57;background:rgba(255,61,87,0.1);padding:3px 8px;border-radius:5px;font-weight:700;}
+.up{color:#00e676;}
+.center{text-align:center;padding:50px 20px;color:#5a7090;}
+.err{background:rgba(255,61,87,0.08);border:1px solid rgba(255,61,87,0.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#ff3d57;margin-bottom:12px;}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #1a2535;border-top-color:#ff3d57;border-radius:50%;animation:sp 0.7s linear infinite;vertical-align:middle;margin-right:8px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:500px){table{display:block;overflow-x:auto;}}
+</style>
+</head>
+<body>
+<h1>📉 StockSense</h1>
+<div class="sub">20% DOWN SCANNER — NSE + BSE</div>
+
+<div class="scan-card">
+  <p>Market close hone ke baad scan karo — Opening price se 20% ya zyada down hue sab stocks NSE aur BSE dono se</p>
+  <div class="tags">
+    <span class="tag">Opening Price Se 20%+ Down</span>
+    <span class="tag g">NSE + BSE Dono</span>
+    <span class="tag y">Buy/Sell Volume</span>
+    <span class="tag b">Circuit Filter</span>
+  </div>
+  <button id="btn" onclick="scan()">🔍 Scan Karo</button>
+</div>
+
+<div id="out"></div>
+
+<script>
+let all=[], af='all';
+
+function vol(v){
+  if(!v)return'—';
+  if(v>=10000000)return(v/10000000).toFixed(1)+'Cr';
+  if(v>=100000)return(v/100000).toFixed(1)+'L';
+  if(v>=1000)return(v/1000).toFixed(1)+'K';
+  return v;
+}
+
+function filtered(){
+  if(af==='nse')return all.filter(s=>s.exchange==='NSE');
+  if(af==='bse')return all.filter(s=>s.exchange==='BSE');
+  if(af==='circ')return all.filter(s=>s.lower_circuit);
+  return all;
+}
+
+function setF(f){
+  af=f;
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('f'+f).classList.add('on');
+  render();
+}
+
+function render(){
+  const d=filtered();
+  let rows='';
+  d.forEach(s=>{
+    rows+=`<tr>
+      <td>
+        <div class="sym">${s.symbol}</div>
+        <div style="display:flex;gap:4px;margin-top:2px">
+          <span class="exch">${s.exchange}</span>
+          <span class="sect">${s.sector}</span>
+          ${s.lower_circuit?'<span class="circ">⚡CIRCUIT</span>':''}
+        </div>
+      </td>
+      <td>₹${s.open}</td>
+      <td style="color:#00e676">₹${s.high}</td>
+      <td style="color:#ff3d57">₹${s.low}</td>
+      <td style="font-weight:700">₹${s.close}</td>
+      <td style="color:#5a7090">₹${s.prev_close}</td>
+      <td><span class="dn">${s.change_from_open}%</span></td>
+      <td class="${s.change_from_prev<=0?'dn':'up'}">${s.change_from_prev>0?'+':''}${s.change_from_prev}%</td>
+      <td>${vol(s.volume)}</td>
+    </tr>`;
+  });
+
+  document.getElementById('out').innerHTML=`
+    <div class="stats">
+      <div class="stat"><div class="stat-l">TOTAL STOCKS</div><div class="stat-v" style="color:#ff3d57">${all.length}</div></div>
+      <div class="stat"><div class="stat-l">NSE</div><div class="stat-v" style="color:#40c4ff">${all.filter(s=>s.exchange==='NSE').length}</div></div>
+      <div class="stat"><div class="stat-l">BSE</div><div class="stat-v" style="color:#b388ff">${all.filter(s=>s.exchange==='BSE').length}</div></div>
+      <div class="stat"><div class="stat-l">CIRCUIT HIT</div><div class="stat-v" style="color:#ffab00">${all.filter(s=>s.lower_circuit).length}</div></div>
+    </div>
+    <div class="filters">
+      <button class="fb ${af==='all'?'on':''}" id="fall" onclick="setF('all')">Sab (${all.length})</button>
+      <button class="fb ${af==='nse'?'on':''}" id="fnse" onclick="setF('nse')">NSE</button>
+      <button class="fb ${af==='bse'?'on':''}" id="fbse" onclick="setF('bse')">BSE</button>
+      <button class="fb ${af==='circ'?'on':''}" id="fcirc" onclick="setF('circ')">⚡Circuit</button>
+    </div>
+    <div class="tbl-wrap">
+      <div class="tbl-head">
+        <span class="tbl-title">📉 20%+ Down — Opening Price Se</span>
+        <span class="cnt">${d.length} stocks</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Stock</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Prev Close</th><th>From Open</th><th>From Prev</th><th>Volume</th>
+          </tr></thead>
+          <tbody>${rows||'<tr><td colspan="9" class="center">Aaj koi stock 20% down nahi hua — Market stable tha!</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function scan(){
+  const btn=document.getElementById('btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin"></span>Scanning...';
+  document.getElementById('out').innerHTML='<div class="center"><span class="spin"></span>NSE aur BSE data fetch ho raha hai...</div>';
+  try{
+    const r=await fetch('/api/losers');
+    const j=await r.json();
+    all=j.data||[];
+    af='all';
+    let err='';
+    (j.errors||[]).forEach(e=>{err+=`<div class="err">⚠️ ${e}</div>`;});
+    if(all.length===0){
+      document.getElementById('out').innerHTML=err+`<div class="tbl-wrap"><div class="center">✅ Aaj koi stock 20% down nahi hua!<br><br><small>Market stable tha ya abhi 3:30 PM nahi hua</small></div></div>`;
+    } else {
+      document.getElementById('out').innerHTML=err;
+      render();
+    }
+  }catch(e){
+    document.getElementById('out').innerHTML='<div class="err">❌ Server se connect nahi ho paya. Refresh karke dobara try karo.</div>';
+  }
+  btn.disabled=false;
+  btn.innerHTML='🔄 Dobara Scan Karo';
+}
+</script>
+</body>
+</html>
